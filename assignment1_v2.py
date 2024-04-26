@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 
 
 class BubbleSort:
@@ -83,51 +85,64 @@ class InsertionSort:
 class MergeSort:
     def __init__(self, arr, ax):
         self.arr = arr
+        # print(arr)
         self.is_sorted = False
-        self.idx = 0
-        self.merge_length = 1
-        self.left = 0
-        self.right = 1
-        self.mid = 1
+        self.stack = [(i,i) for i in range(len(self.arr))]
         self.ax = ax
+        self.ax_inset = inset_axes(self.ax, width="60%", height="20%", loc='upper left')
+        self.tmp = []
+        self.tmp_record = []
 
     def update(self):
-        n = len(self.arr)
-        if self.is_sorted or self.merge_length >= n:
+        self.tmp = []
+        if self.is_sorted or len(self.stack) <= 1:
+            self.is_sorted = True
             return
-        while self.merge_length < n:
-            while self.idx + self.merge_length < n:
-                if self.left >= self.mid or self.right >= self.mid or self.left == 0:
-                    self.left = self.idx
-                    self.right = min(self.left + 2 * self.merge_length - 1, n - 1)
-                    self.mid = self.left + self.merge_length
-                while self.right >= self.mid:
-                    while self.left < self.mid:
-                        if self.arr[self.left] > self.arr[self.right]:
-                            self.arr[self.left], self.arr[self.right] = (
-                                self.arr[self.right],
-                                self.arr[self.left],
-                            )
-                            return
-                        self.left = self.left + 1
-
-                    self.right = self.right - 1
-                    self.left = self.idx
-
-                self.idx = self.mid + self.merge_length
-                self.left = self.idx
-            self.merge_length = 2 * self.merge_length
-            self.idx = 0
-            self.left = 0
-        self.is_sorted = True
+        left1, right1 = self.stack.pop(0)
+        left2, right2 = self.stack.pop(0)
+        if right1 > right2:
+            self.stack.append((left1,right1))
+            left1, right1 = left2, right2
+            left2, right2 = self.stack.pop(0)
+        i = left1
+        j = left2
+        while i <=right1  and j <= right2:
+            if self.arr[i] > self.arr[j]:
+                self.tmp.append(self.arr[j])
+                j += 1
+            else:
+                self.tmp.append(self.arr[i])
+                i += 1
+            self.tmp_record.append(list(self.tmp))
+        while i<=right1:
+            self.tmp.append(self.arr[i])
+            i+=1
+            self.tmp_record.append(list(self.tmp))
+        while j<=right2:
+            self.tmp.append(self.arr[j])
+            j+=1
+            self.tmp_record.append(list(self.tmp))
+        self.stack.append((left1,right2))
+        for i in range(left1,right2+1):
+            self.arr[i] = self.tmp[i-left1]
+    
 
     def draw(self,frame=None):
-        self.ax.clear()
         if frame == None:
             self.ax.set_title("Merge Sort")
         else :
             self.ax.set_title(f"Merge Sort Frame: {frame}")
-        self.ax.bar(range(1, len(self.arr) + 1), self.arr, color="skyblue")
+        if len(self.tmp_record) == 0:
+            self.ax.clear()
+            self.ax.bar(range(1, len(self.arr) + 1), self.arr, color="skyblue")
+        elif len(self.tmp_record) > 0:
+            tmp_arr = self.tmp_record.pop(0)
+            tmp_arr = tmp_arr + [0] * (len(self.arr) - len(tmp_arr))
+            self.ax_inset.clear()
+            self.ax_inset.set_ylim(0, len(self.arr) + 1)
+            self.ax_inset.bar(range(1,len(self.arr) + 1), tmp_arr , color="skyblue")
+            self.ax_inset.plot([0])
+
 
 
 class QuickSort:
@@ -271,8 +286,8 @@ class BogoSort:
 
 def init():
     global bubblesort, insertionsort, mergesort, quicksort, heapsort, bogosort
-    arr = np.random.choice(range(1, 51), 50, replace=False)
-    # arr = [i for i in range(32,0,-1)]
+    # arr = list(np.random.choice(range(1, 51), 50, replace=False))
+    arr = [i for i in range(10,0,-1)]
 
     # Bubble Sort
     arr_bubblesort = arr.copy()
@@ -321,7 +336,9 @@ def update(frame):
 
     # Merge Sort
     if not mergesort.is_sorted:
-        mergesort.update()
+        if len(mergesort.tmp_record) == 0:
+            mergesort.draw()
+            mergesort.update()
         # mergesort.draw(frame=frame)
         mergesort.draw()
 
@@ -347,6 +364,6 @@ if __name__ == "__main__":
     fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3, figsize=(14, 6))
 
     ani = FuncAnimation(
-        fig, update, init_func=init, frames=range(10000), interval=100, repeat=False
+        fig, update, init_func=init, frames=range(10000), interval=500, repeat=False
     )
     plt.show()
